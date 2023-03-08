@@ -3,7 +3,7 @@
 #include <NiTypes.h>
 #include <NiNodes.h>
 
-// If you scavenging for data, keep in mind I stubbed some classes
+// If you are scavenging for data, keep in mind I stubbed some classes
 
 enum RenderPassTypes
 {
