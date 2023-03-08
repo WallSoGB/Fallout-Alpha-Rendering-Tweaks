@@ -1,0 +1,4 @@
+LIBRARY	"Alpha Fixes"
+EXPORTS
+NVSEPlugin_Query
+NVSEPlugin_Load
