@@ -2,6 +2,8 @@
 #include <NiObjects.h>
 #include <NiTypes.h>
 #include <NiNodes.h>
+#include <GameData.h>
+#include "d3d9.h"
 
 // If you are scavenging for data, keep in mind I stubbed some classes
 
@@ -860,6 +862,9 @@ public:
 
 	unsigned __int16 m_usFlags;
 	ShaderType m_eShaderType;
+
+	__forceinline const char* GetShaderType() { return NiShadeProperty::GetShaderType(this->m_eShaderType); };
+	static const char* GetShaderType(UInt32 eType);
 };
 STATIC_ASSERT(sizeof(NiShadeProperty) == 0x20);
 
@@ -894,6 +899,27 @@ public:
 	void* m_spShaderDecl;
 };
 STATIC_ASSERT(sizeof(NiGeometry) == 0xC4);
+
+struct BSRenderPass
+{
+	NiGeometry* pGeometry;
+	__int16 usPassEnum;
+	bool byte6;
+	bool bEnabled;
+	bool byte8;
+	char ucNumLights;
+	bool byteA;
+	bool byteB;
+	void** ppSceneLights;
+
+	const char* GetPassName();
+	static const char* GetPassName(UInt32 pass);
+	static const char* GetCurrentPassName();
+	static const char* GetCurrentPassShaderType();
+
+	__forceinline static UInt32 GetCurrentPassType() { return *(UInt32*)0x11F91E4; }
+	__forceinline static BSRenderPass* GetCurrentPass() { return *(BSRenderPass**)0x11F91E0; }
+};
 
 class BSShaderProperty : public NiShadeProperty {
 public:
@@ -958,7 +984,7 @@ public:
 		kFlags2_Premult_Alpha = 0x80000,
 		kFlags2_Skip_Normal_Maps = 0x100000,
 		kFlags2_Alpha_Decal = 0x200000,
-		kFlags2_No_Transparecny_Multisampling = 0x400000,
+		kFlags2_No_Transparency_Multisampling = 0x400000,
 		kFlags2_stinger_prop = 0x800000,
 		kFlags2_Unknown3 = 0x1000000,
 		kFlags2_Unknown4 = 0x2000000,

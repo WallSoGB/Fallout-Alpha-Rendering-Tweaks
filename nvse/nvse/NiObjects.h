@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NiNodes.h"
+#include "NiPoint.h"
 
 // UNMODIFIED OBSE FILE. I need NiNode class definition.
 

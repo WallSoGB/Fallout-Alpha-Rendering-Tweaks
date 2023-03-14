@@ -74,6 +74,9 @@
     <ClCompile Include="..\nvse\nvse\NiTypes.cpp">
       <Filter>nvse</Filter>
     </ClCompile>
+    <ClCompile Include="decoded.cpp">
+      <Filter>internal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\nvse\nvse\GameAPI.h">

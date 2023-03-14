@@ -30,3 +30,27 @@
 *.exe
 *.out
 *.app
+*.vsidx
+*.opendb
+*.db-wal
+*.lock
+*.db
+*.db-shm
+*.ipch
+*.vcxproj
+*.recipe
+*.exp
+*.ipdb
+*.pdb
+*.log
+*.txt
+*.lastbuildstate
+*.tlog
+*.iobj
+Alpha Fixes/.vs/AlphaFixes/v17/.suo
+*.json
+*.idb
+*.command
+*.ilk
+*.ifc
+*.bin
