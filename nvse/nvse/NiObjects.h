@@ -60,6 +60,17 @@ class NiPSysModifier;
 class NiRenderer;
 class NiGeometryData;
 
+class NiBound {
+public:
+
+	NiPoint3 m_kCenter;
+	float m_fRadius;
+
+	static float ms_fFuzzFactor;
+	static float ms_fTolerance;
+};
+STATIC_ASSERT(sizeof(NiBound) == 0x010);
+
 // 0AC
 class NiAVObject : public NiObjectNET
 {
@@ -97,19 +108,13 @@ public:
 		kFlag_SelUpdateRigid =				1 << 4,
 	};
 
-	struct RotAndTranslate 
-	{
-		NiMatrix33	rotate;		// Init'd to 1 0 0, 0 1 0, 0 0 1
-		NiVector3	translate;	// Init'd to 0x011F426C[3]
-	};	// 30
-
-	NiNode* m_parent;								// 18
+	NiNode* m_pkParent;								// 18
 	void* m_collisionObject;						// 1C
-	NiSphere* m_kWorldBound;						// 20
-	DList<NiProperty>		m_propertyList;			// 24
+	NiBound* m_kWorldBound;							// 20
+	DList<NiProperty*>		m_propertyList;			// 24
 	UInt32					m_flags;				// 30
-	NiTransform				m_transformLocal;		// 34
-	NiTransform				m_transformWorld;		// 68
+	NiTransform				m_kLocal;				// 34
+	NiTransform				m_kWorld;				// 68
 
     void Update();
     UInt32 GetIndex();

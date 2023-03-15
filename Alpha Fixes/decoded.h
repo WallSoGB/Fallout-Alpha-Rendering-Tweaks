@@ -7,6 +7,22 @@
 
 // If you are scavenging for data, keep in mind I stubbed some classes
 
+class NiPoint2 : public NiMemObject
+{
+public:
+	float x;
+	float y;
+};
+
+class NiColorA : public NiMemObject
+{
+public:
+	float r;
+	float g;
+	float b;
+	float a;
+};
+
 enum RenderPassTypes
 {
 	BSSM_ZONLY = 0x1,
@@ -1013,3 +1029,53 @@ public:
 	float fDepthBias;
 };
 STATIC_ASSERT(sizeof(BSShaderProperty) == 0x60);
+
+
+class NiGeometryData : public NiObject {
+public:
+	enum Consistency {
+		MUTABLE = 0x0000,
+		STATIC = 0x4000,
+		VOLATILE = 0x8000,
+		CONSISTENCY_MASK = 0xF000,
+	};
+
+	unsigned __int16 m_usVertices;
+	unsigned __int16 m_usID;
+	unsigned __int16 m_usDataFlags;
+	unsigned __int16 m_usDirtyFlags;
+	NiBound m_kBound;
+	NiPoint3* m_pkVertex;
+	NiVector3* m_pkNormal;
+	NiColorA* m_pkColor;
+	NiPoint2* m_pkTexture;
+	void* m_spAdditionalGeomData;
+	int* m_pkBuffData;
+	unsigned __int8 m_ucKeepFlags;
+	unsigned __int8 m_ucCompressFlags;
+	unsigned __int8 Unk3A;
+	unsigned __int8 Unk3B;
+	unsigned __int8 Unk3C;
+};
+STATIC_ASSERT(sizeof(NiGeometryData) == 0x40);
+
+class NiTriBasedGeom : public NiGeometry
+{
+};
+
+class NiTriShape : public NiTriBasedGeom
+{
+};
+
+class NiTriStrips : public NiTriBasedGeom
+{
+};
+
+class NiTriBasedGeomData : public NiGeometryData
+{
+public:
+	UInt16 m_usTriangles;
+	UInt16 m_usActiveTriangles;
+};
+STATIC_ASSERT(offsetof(NiTriBasedGeomData, m_usTriangles) == 0x40);
+STATIC_ASSERT(offsetof(NiTriBasedGeomData, m_usActiveTriangles) == 0x42);

@@ -34,6 +34,25 @@ void(__cdecl* SetTransparencyMultisampling)(int, int) = (void(__cdecl*)(int, int
 
 void(__thiscall* SetRenderState)(int*, D3DRENDERSTATETYPE eState, unsigned int uiValue, int a4, bool bSave) = (void(__thiscall*)(int*, D3DRENDERSTATETYPE eState, unsigned int uiValue, int a4, bool bSave))0xE88780;
 
+#if _DEBUG
+TESObjectREFR* (__cdecl* FindReferenceFor3D)(NiNode* node) = (TESObjectREFR * (__cdecl*)(NiNode*))0x56F930;
+
+const char* GetModelPath(TESObjectREFR* ref) {
+	TESForm* form = NULL;
+	if (ref)
+		form = ref->baseForm;
+	else
+		return "Not a ref";
+
+	TESModel* model = DYNAMIC_CAST(form, TESForm, TESModel);
+	if (model)
+		if (model->nifPath.m_data)
+			return model->nifPath.m_data ? model->nifPath.m_data : "No nif";
+		else
+			return "No nif";
+}
+#endif
+
 #if _SSAA
 bool bUseSSAA = 0;
 bool bCanUseSSAA = 0;
@@ -128,6 +147,9 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		SetTransparencyMultisampling(bEnable, markStatus);
 		return;
 	}
+#if _DEBUG
+	_MESSAGE("[AlphaMSAA] Current pass: %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+#endif
 
 	switch (passType) {
 		// Complete no-no list, don't bother with doing anything else
@@ -139,22 +161,19 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 	case BSSM_SKY_TEXTURE:
 	case BSSM_SKYBASEPOST:
 	case BSSM_IMAGESPACE:
-#if _DEBUG
-		_MESSAGE("[AlphaMSAA] Current pass: %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-#endif
 		SetTransparencyMultisampling(bEnable, markStatus);
 		break;
 		// These passes get broken visuals with TMSAA
 	case BSSM_ZONLY:
 	case BSSM_ZONLY_S:
-	case BSSM_3XTEXEFFECT:
-	case BSSM_3XTEXEFFECT_S:
-	case BSSM_2x_TEXEFFECT:
-	case BSSM_2x_TEXEFFECT_S:
 	case BSSM_ZONLY_TEXEFFECT:
 	case BSSM_ZONLY_TEXEFFECT_S:
 	case BSSM_3XZONLY_TEXEFFECT:
 	case BSSM_3XZONLY_TEXEFFECT_S:
+	case BSSM_3XTEXEFFECT:
+	case BSSM_3XTEXEFFECT_S:
+	case BSSM_2x_TEXEFFECT:
+	case BSSM_2x_TEXEFFECT_S:
 	case BSSM_NOLIGHTING_PSYS:
 	case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
 	case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
@@ -166,7 +185,19 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 			SetSSAA(bEnable, markStatus);
 		else
 #endif
-			DisableTransparencyMultisampling(markStatus);
+#if _DEBUG
+			if (pCurrentPass)
+				if (pCurrentPass->bEnabled) {
+					if (pCurrentPass->pGeometry) {
+						NiGeometry* pGeo = pCurrentPass->pGeometry;
+						if (pGeo) {
+							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+							_MESSAGE("[AlphaMSAA] Current geo: %s, %s | Pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, model = model ? model : "Unknown", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+						}
+					}
+				}
+#endif
+		DisableTransparencyMultisampling(markStatus);
 		break;
 	default:
 		// Check for "No_Transparency_Multisampling"
@@ -179,11 +210,19 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 				if (pCurrentPass->bEnabled) {
 					NiGeometry* pGeo = pCurrentPass->pGeometry;
 					if (pGeo) {
-						if (pGeo->shaderProperties.m_shadeProperty) {
-							BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
-							if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
-								DisableTransparencyMultisampling(markStatus);
-								break;
+#if _DEBUG
+						//	_MESSAGE("[AlphaMSAA] Current geo: %s, pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+#endif
+						BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
+						if (shaderProp) {
+							if (shaderProp->m_eShaderType != -1) {
+								if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
+									DisableTransparencyMultisampling(markStatus);
+									break;
+								}
+							}
+							else {
+								_MESSAGE("[AlphaMSAA] Woohoo, shader property not being BSShaderProperty");
 							}
 						}
 					}
@@ -211,16 +250,16 @@ void __fastcall SetBlendAlpha(BSShader* thiss, void*, NiGeometry::ShaderProperti
 	bool bEnableBlend = ((shadeProp->fAlpha < 1.0f && ((shadeProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Fade) == 0)) || shadeProp->fFadeAlpha < 1.0f || bBlend);
 	if (bEnableBlend) {
 #if _DEBUG
-	//	_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s", BSRenderPass::GetCurrentPassName(), shadeProp->GetShaderType());
+		//	_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s", BSRenderPass::GetCurrentPassName(), shadeProp->GetShaderType());
 #endif
 		SetAlphaBlendEnable(1, 0);
 		if (bBlend) [[likely]] {
 			SetSrcAndDstBlends(((flags >> 1) & 0xF), ((flags >> 5) & 0xF), 0);
-		}
+	}
 		else {
 			SetSrcAndDstBlends(6, 7, 0);
 		}
-	}
+}
 }
 
 // Thx karut for help with jumping
