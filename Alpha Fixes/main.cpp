@@ -197,8 +197,10 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		_MESSAGE("[AlphaMSAA] Current pass: %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
 #endif
 		if (pCurrentPass && pCurrentPass->bEnabled) {
-			if (NiGeometry* pGeo = pCurrentPass->pGeometry) {
-				if (BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty) {
+			NiGeometry* pGeo = pCurrentPass->pGeometry;
+			if (pGeo) {
+				BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
+				if (shaderProp) {
 					if (shaderProp->m_eShaderType != -1) {
 						if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
 							DisableTransparencyMultisampling(markStatus);
