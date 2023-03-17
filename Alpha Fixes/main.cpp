@@ -15,7 +15,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 210;
+	info->version = 220;
 	return true;
 }
 
@@ -125,8 +125,8 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		return;
 	}
 
-	static const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
-	static UInt16 passType = 0;
+	const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
+	UInt16 passType = 0;
 	if (pCurrentPass && pCurrentPass->bEnabled) {
 		passType = pCurrentPass->usPassEnum;
 	}
@@ -138,9 +138,6 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		SetTransparencyMultisampling(bEnable, markStatus);
 		return;
 	}
-#if _DEBUG
-	_MESSAGE("[AlphaMSAA] Current pass: %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-#endif
 
 	switch (passType) {
 		// Complete no-no list, don't bother with doing anything else
@@ -149,6 +146,7 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 	case BSSM_SKYBASEPRE:
 	case BSSM_SKY:
 	case BSSM_SKY_TEXTURE:
+	case BSSM_SKY_CLOUDS:
 	case BSSM_SKYBASEPOST:
 	case BSSM_TILE:
 	case BSSM_IMAGESPACE:
@@ -177,30 +175,22 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		else
 #endif
 #if _DEBUG
-			if (pCurrentPass)
-				if (pCurrentPass->bEnabled) {
-					if (pCurrentPass->pGeometry) {
-						NiGeometry* pGeo = pCurrentPass->pGeometry;
-						if (pGeo) {
-							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-							_MESSAGE("[AlphaMSAA] Current geo: %s, %s | Pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, model = model ? model : "Unknown", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-						}
-					}
-				}
+			_MESSAGE("[AlphaMSAA] [Disable] Current pass: %s | %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
 #endif
 		DisableTransparencyMultisampling(markStatus);
 		break;
 	default:
 		// Check for "No_Transparency_Multisampling"
 		// That's a lot of checks, whew
-#if _DEBUG
-		_MESSAGE("[AlphaMSAA] Current pass: %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-#endif
 		if (pCurrentPass && pCurrentPass->bEnabled) {
-			NiGeometry* pGeo = pCurrentPass->pGeometry;
+			const NiGeometry* pGeo = pCurrentPass->pGeometry;
 			if (pGeo) {
 				BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
 				if (shaderProp) {
+#if _DEBUG
+					const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+					_MESSAGE("[AlphaMSAA] Current geo: %s, %s | Pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, model ? model : "Unknown", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+#endif
 					if (shaderProp->m_eShaderType != -1) {
 						if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
 							DisableTransparencyMultisampling(markStatus);
@@ -210,6 +200,9 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 				}
 			}
 		}
+#if _DEBUG
+		_MESSAGE("[AlphaMSAA] [Default] Current pass: %s | %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+#endif
 		SetTransparencyMultisampling(bEnable, markStatus);
 		break;
 	}
