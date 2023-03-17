@@ -15,7 +15,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 230;
+	info->version = 231;
 	return true;
 }
 
@@ -185,11 +185,8 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 	default:
 		// Check for "No_Transparency_Multisampling"
 		// That's a lot of checks, whew - my sanity is gone after this. Some day I will revisit to check what's not needed. I need a good test case however
-#if _DEBUG
-		//_MESSAGE("[AlphaMSAA] [Default] Current pass: %s | %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-#endif
 		if (pCurrentPass && pCurrentPass->bEnabled == 1 && pCurrentPass->pGeometry) {
-			const NiGeometry* pGeo = pCurrentPass->pGeometry->IsGeometry();
+			const NiGeometry* pGeo = pCurrentPass->pGeometry;
 			if (pGeo) {
 				const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
 				if (shaderProp) {
