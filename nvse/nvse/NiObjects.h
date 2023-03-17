@@ -60,6 +60,10 @@ class NiPSysModifier;
 class NiRenderer;
 class NiGeometryData;
 
+struct NiPropertyPtr {
+	NiProperty* m_pObject;
+};
+
 class NiBound {
 public:
 
@@ -111,7 +115,7 @@ public:
 	NiNode* m_pkParent;								// 18
 	void* m_collisionObject;						// 1C
 	NiBound* m_kWorldBound;							// 20
-	DList<NiProperty*>		m_propertyList;			// 24
+	DList<NiPropertyPtr>		m_propertyList;			// 24
 	UInt32					m_flags;				// 30
 	NiTransform				m_kLocal;				// 34
 	NiTransform				m_kWorld;				// 68
@@ -119,7 +123,7 @@ public:
     void Update();
     UInt32 GetIndex();
     bool __fastcall ReplaceObject(NiAVObject* object);
-    NiProperty* __fastcall GetProperty(UInt32 propID);
+	NiProperty* GetProperty(UInt32 propID);
 
     void DumpProperties();
     void DumpParents();

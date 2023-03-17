@@ -482,12 +482,12 @@ public:
 	NiObject();
 	~NiObject();
 
-	virtual NiRTTI *	GetType(void);		// 02
+	virtual NiRTTI *	GetRTTI(void);		// 02
 	virtual NiNode *	GetAsNiNode(void);	// 03 
-	virtual UInt32		Unk_04(void);		// 04
-	virtual UInt32		Unk_05(void);		// 05
-	virtual UInt32		Unk_06(void);		// 06
-	virtual UInt32		Unk_07(void);		// 07
+	virtual NiObject*   Unk_04(void);		// 04
+	virtual NiObject*   Unk_05(void);		// 05
+	virtual NiGeometry* IsGeometry(void);		// 06
+	virtual NiObject*	Unk_07(void);		// 07
 	virtual UInt32		Unk_08(void);		// 08
 	virtual UInt32		Unk_09(void);		// 09
 	virtual UInt32		Unk_0A(void);		// 0A
@@ -509,7 +509,7 @@ public:
 	virtual void		Unk_1A(void);
 	virtual void		Unk_1B(UInt32 arg);
 	virtual void		Unk_1C(void);
-	virtual void		GetType2(void);					// calls GetType
+	virtual void		GetStreamableRTTI(void);					// calls GetRTTI
 	virtual void		Unk_1E(UInt32 arg);
 	virtual void		Unk_1F(void);
 	virtual void		Unk_20(void);

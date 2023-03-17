@@ -15,7 +15,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 220;
+	info->version = 230;
 	return true;
 }
 
@@ -126,30 +126,33 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 	}
 
 	const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
-	UInt16 passType = 0;
-	if (pCurrentPass && pCurrentPass->bEnabled) {
+	UInt32 passType = 0;
+	// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
+	if (pCurrentPass && pCurrentPass->bEnabled == 1) {
 		passType = pCurrentPass->usPassEnum;
 	}
-	if (!passType)
+	else {
 		passType = BSRenderPass::GetCurrentPassType();
+	}
+#if _DEBUG
+	_MESSAGE("[AlphaMSAA] [Start] Current pass: %s (pCurrentPass->passType) | %s (GetCurrentPassName) | %i (GetCurrentPassType), TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassType(), bEnable);
+#endif
 
 	// Some PipBoy stuff is above 758 - Local maps?
-	if (passType > BSSM_IMAGESPACE) {
+	// Some passes are corrupted and are negative (huh?)
+	if (passType > BSSM_TILE || passType < BSSM_ZONLY) {
 		SetTransparencyMultisampling(bEnable, markStatus);
 		return;
 	}
 
 	switch (passType) {
 		// Complete no-no list, don't bother with doing anything else
-	case 0:
 	case BSSM_AMBIENT_OCCLUSION:
 	case BSSM_SKYBASEPRE:
 	case BSSM_SKY:
 	case BSSM_SKY_TEXTURE:
 	case BSSM_SKY_CLOUDS:
 	case BSSM_SKYBASEPOST:
-	case BSSM_TILE:
-	case BSSM_IMAGESPACE:
 		SetTransparencyMultisampling(bEnable, markStatus);
 		break;
 		// These passes get broken visuals with TMSAA
@@ -181,15 +184,18 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 		break;
 	default:
 		// Check for "No_Transparency_Multisampling"
-		// That's a lot of checks, whew
-		if (pCurrentPass && pCurrentPass->bEnabled) {
-			const NiGeometry* pGeo = pCurrentPass->pGeometry;
+		// That's a lot of checks, whew - my sanity is gone after this. Some day I will revisit to check what's not needed. I need a good test case however
+#if _DEBUG
+		//_MESSAGE("[AlphaMSAA] [Default] Current pass: %s | %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+#endif
+		if (pCurrentPass && pCurrentPass->bEnabled == 1 && pCurrentPass->pGeometry) {
+			const NiGeometry* pGeo = pCurrentPass->pGeometry->IsGeometry();
 			if (pGeo) {
-				BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
+				const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
 				if (shaderProp) {
 #if _DEBUG
 					const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-					_MESSAGE("[AlphaMSAA] Current geo: %s, %s | Pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, model ? model : "Unknown", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
+					_MESSAGE("[AlphaMSAA] [Default] [TMSAA check] Current geo: %s, %s | Pass: %s, shader type: %s, TMSAA request: %i", pGeo->m_pkParent->m_kName, model ? model : "Unknown", BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
 #endif
 					if (shaderProp->m_eShaderType != -1) {
 						if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
@@ -200,9 +206,6 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 				}
 			}
 		}
-#if _DEBUG
-		_MESSAGE("[AlphaMSAA] [Default] Current pass: %s | %s, shader type: %s, TMSAA request: %i", BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName(), BSRenderPass::GetCurrentPassShaderType(), bEnable);
-#endif
 		SetTransparencyMultisampling(bEnable, markStatus);
 		break;
 	}

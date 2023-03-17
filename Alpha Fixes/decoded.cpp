@@ -1,4 +1,5 @@
 #include <decoded.h>
+#include <GameData.h>
 
 const char* BSRenderPass::GetPassName(UInt32 pass) {
 	const char* result;
@@ -2275,17 +2276,22 @@ const char* BSRenderPass::GetCurrentPassShaderType() {
 	BSRenderPass* pCurrPass = BSRenderPass::GetCurrentPass();
 	if (pCurrPass && pCurrPass->bEnabled) {
 		if (pCurrPass->usPassEnum > 0 && pCurrPass->usPassEnum < BSSM_IMAGESPACE) {
-			NiGeometry* pGeo = pCurrPass->pGeometry;
-			if (pGeo) {
-				BSShaderProperty* pShaderProp = ((BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty);
-				if (pShaderProp) {
-					eType = ((BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty)->m_eShaderType;
+			if (pCurrPass->pGeometry) {
+				NiGeometry* pGeo = pCurrPass->pGeometry->IsGeometry();
+				if (pGeo) {
+					BSShaderProperty* pShaderProp = ((BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty);
+					if (pShaderProp) {
+						eType = ((BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty)->m_eShaderType;
+					}
+					else {
+#if _DEBUG
+						_ERROR("[BSRenderPass::GetCurrentPassShaderType] No shader property!");
+#endif
+						return "No shader property!";
+					}
 				}
 				else {
-#if _DEBUG
-					_ERROR("[BSRenderPass::GetCurrentPassShaderType] No shader property!");
-#endif
-					return "No shader property!";
+					return "Geometry not initialized!";
 				}
 			}
 			else {
@@ -2370,4 +2376,37 @@ const char* NiShadeProperty::GetShaderType(UInt32 eType) {
 		break;
 	}
 	return result;
+}
+
+NiProperty* NiAVObject::GetProperty(UInt32 propID)
+{
+	if (!this)
+		return nullptr;
+	NiProperty* v4 = nullptr;
+	if (propID >= 7)
+	{
+		return nullptr;
+	}
+	DListNode<NiPropertyPtr>* v3 = m_propertyList.Head();
+	if (!v3)
+	{
+		return nullptr;
+	}
+	while (1)
+	{
+		NiProperty* v4 = v3->data->m_pObject;
+		v3 = v3->next;
+		if (v4)
+		{
+			if (v4->Type() == propID)
+			{
+				break;
+			}
+		}
+		if (!v3)
+		{
+			return nullptr;
+		}
+	}
+	return v4;
 }

@@ -324,6 +324,9 @@ public:
 
 class NiProperty : public NiObjectNET
 {
+public:
+	virtual int			Type();
+	virtual void		Update(void* pUpdateData);
 };
 
 
