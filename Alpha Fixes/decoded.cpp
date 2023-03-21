@@ -2275,7 +2275,7 @@ const char* BSRenderPass::GetCurrentPassShaderType() {
 	UInt32 eType = 0;
 	BSRenderPass* pCurrPass = BSRenderPass::GetCurrentPass();
 	if (pCurrPass && pCurrPass->bEnabled) {
-		if (pCurrPass->usPassEnum > 0 && pCurrPass->usPassEnum < BSSM_IMAGESPACE) {
+		if (pCurrPass->usPassEnum > 0 && pCurrPass->usPassEnum < BSSM_TILE) {
 			if (pCurrPass->pGeometry) {
 				NiGeometry* pGeo = pCurrPass->pGeometry->IsGeometry();
 				if (pGeo) {
@@ -2302,7 +2302,7 @@ const char* BSRenderPass::GetCurrentPassShaderType() {
 			}
 		}
 		else {
-			return "ImageSpace";
+			return "ImageSpace/Tile";
 		}
 	}
 	return NiShadeProperty::GetShaderType(eType);

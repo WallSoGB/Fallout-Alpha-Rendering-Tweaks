@@ -140,7 +140,7 @@ void __cdecl AlphaMSAA(int bEnable, int markStatus) {
 
 	// Some PipBoy stuff is above 758 - Local maps?
 	// Some passes are corrupted and are negative (huh?)
-	if (passType > BSSM_TILE || passType < BSSM_ZONLY) {
+	if (passType > BSSM_SHADOWVOLUME_WIRE || passType < BSSM_ZONLY) {
 		SetTransparencyMultisampling(bEnable, markStatus);
 		return;
 	}
