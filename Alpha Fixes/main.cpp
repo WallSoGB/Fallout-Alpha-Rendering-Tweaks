@@ -15,7 +15,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 231;
+	info->version = 232;
 	return true;
 }
 
