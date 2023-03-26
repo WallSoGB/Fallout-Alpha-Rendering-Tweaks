@@ -15,7 +15,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 240;
+	info->version = 241;
 	return true;
 }
 
@@ -34,7 +34,14 @@ void(__cdecl* SetSrcAndDstBlends)(int, int, int) = (void(__cdecl*)(int, int, int
 
 void(__thiscall* SetRenderState)(int*, D3DRENDERSTATETYPE eState, unsigned int uiValue, int a4, bool bSave) = (void(__thiscall*)(int*, D3DRENDERSTATETYPE eState, unsigned int uiValue, int a4, bool bSave))0xE88780;
 
+void DebugLog(const char* fmt, ...) {
 #if _DEBUG
+	va_list args;
+	_MESSAGE(fmt, args);
+#endif
+}
+
+#if 1
 TESObjectREFR* (__cdecl* FindReferenceFor3D)(NiNode* node) = (TESObjectREFR * (__cdecl*)(NiNode*))0x56F930;
 
 const char* GetModelPath(TESObjectREFR* ref) {
@@ -66,6 +73,11 @@ void __cdecl SetShaderPackageHook(int PixelShader, int VertexShader, bool bForce
 
 D3DFORMAT TMSAA_Format;
 D3DRENDERSTATETYPE TMSAA_StateType;
+enum ForceState : UInt32 {
+	DEFAULT = 0,
+	ENABLE = 1,
+	DISABLE = 2
+};
 int bInternalStatus = 0;
 
 // Controls the Transparency Multisampling state based on the pass, preventing broken or barely visible effects
@@ -73,84 +85,98 @@ int bInternalStatus = 0;
 // That's why disintegration effects are broken - they're using the TMSAA from the previous pass
 // Additionally, TMSAA is being enabled on the last pass in the group for whatever reason, thus the need to handle them manually
 void __cdecl SetTMSAAState(int bEnable, int bMarkStatus) {
-	// Quit early if state is same as before
-	if (bInternalStatus == bEnable) {
-		BSRenderState_StateStatus += bMarkStatus;
-		return;
+	DebugLog("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
+
+	const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
+	UInt32 passType = 0;
+	bool bCandidatePass = 0;
+	ForceState eCustomState = DEFAULT;
+
+	// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
+	if (pCurrentPass && pCurrentPass->bEnabled == 1) {
+		passType = pCurrentPass->usPassEnum;
+		bCandidatePass = true;
+	}
+	else {
+		passType = BSRenderPass::GetCurrentPassType();
 	}
 
-	if (bEnable) {
-		const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
-		UInt32 passType = 0;
-		bool bCandidatePass = 0;
+	if (passType > 0 && passType < BSSM_TILE) {
+#if _DEBUG
+		DebugLog("[SetTMSAAState] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+#endif
 
-		// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
-		if (pCurrentPass && pCurrentPass->bEnabled == 1) {
-			passType = pCurrentPass->usPassEnum;
-			bCandidatePass = true;
-		}
-		else {
-			passType = BSRenderPass::GetCurrentPassType();
-		}
-		if (passType > 0 && passType < BSSM_TILE) {
-			switch (passType) {
-				// These passes have no importance for us
-			case BSSM_AMBIENT_OCCLUSION:
-			case BSSM_SKYBASEPRE:
-			case BSSM_SKY:
-			case BSSM_SKY_TEXTURE:
-			case BSSM_SKY_CLOUDS:
-			case BSSM_SKYBASEPOST:
-				break;
-				// These passes break with TMSAA
-			case BSSM_ZONLY_TEXEFFECT:
-			case BSSM_ZONLY_TEXEFFECT_S:
-			case BSSM_3XZONLY_TEXEFFECT:
-			case BSSM_3XZONLY_TEXEFFECT_S:
-			case BSSM_NOLIGHTING_PSYS:
-			case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
-			case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
-			case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET_PREMULT_ALPHA:
-			case BSSM_NOLIGHTING_STRIP_PSYS:
-			case BSSM_NOLIGHTING_STRIP_PSYS_SUBTEX:
-			case BSSM_3XTEXEFFECT:
-			case BSSM_3XTEXEFFECT_S:
-			case BSSM_2x_TEXEFFECT:
-			case BSSM_2x_TEXEFFECT_S:
-				bEnable = 0;
-				break;
-			default:
-				// Check for "No_Transparency_Multisampling"
-				if (bCandidatePass && pCurrentPass->pGeometry) {
-					const NiGeometry* pGeo = pCurrentPass->pGeometry;
-					if (pGeo) {
-						const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
-						if (shaderProp) {
+		switch (passType) {
+			// These passes have no importance for us
+		case BSSM_AMBIENT_OCCLUSION:
+		case BSSM_SKYBASEPRE:
+		case BSSM_SKY:
+		case BSSM_SKY_TEXTURE:
+		case BSSM_SKY_CLOUDS:
+		case BSSM_SKYBASEPOST:
+			break;
+			// These passes break with TMSAA
+		case BSSM_ZONLY_TEXEFFECT:
+		case BSSM_ZONLY_TEXEFFECT_S:
+		case BSSM_3XZONLY_TEXEFFECT:
+		case BSSM_3XZONLY_TEXEFFECT_S:
+		case BSSM_NOLIGHTING_PSYS:
+		case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
+		case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
+		case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET_PREMULT_ALPHA:
+		case BSSM_NOLIGHTING_STRIP_PSYS:
+		case BSSM_NOLIGHTING_STRIP_PSYS_SUBTEX:
+		case BSSM_3XTEXEFFECT:
+		case BSSM_3XTEXEFFECT_S:
+		case BSSM_2x_TEXEFFECT:
+		case BSSM_2x_TEXEFFECT_S:
+			eCustomState = DISABLE;
+			bEnable = 0;
+			break;
+		default:
+			// Check for "No_Transparency_Multisampling"
+			if (bCandidatePass && pCurrentPass->pGeometry) {
+				const NiGeometry* pGeo = pCurrentPass->pGeometry;
+				if (pGeo) {
+					const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
+					if (shaderProp) {
 #if _DEBUG
-							_MESSAGE("[AlphaMSAA] [Default] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
-							_MESSAGE("[AlphaMSAA] [Default] [TMSAA check] Shader type: %s", BSRenderPass::GetCurrentPassShaderType());
-							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-							_MESSAGE("[AlphaMSAA] [Default] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
+						DebugLog("[SetTMSAAState] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+						DebugLog("[SetTMSAAState] [TMSAA check] Shader type: %s", BSRenderPass::GetCurrentPassShaderType());
+						const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+						DebugLog("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
 #endif
-							if (shaderProp->m_eShaderType != -1) {
-								if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
+						if (shaderProp->m_eShaderType != -1) {
+							if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
 #if _DEBUG
-									_MESSAGE("[AlphaMSAA] [Default] [TMSAA check] Disabling...");
+								DebugLog("[SetTMSAAState] [Default] [TMSAA check] Disabling...");
 #endif
-									bEnable = 0;
-									break;
-								}
+								eCustomState = DISABLE;
+								bEnable = 0;
+								break;
 							}
 						}
 					}
 				}
+			}
+			// Grass must always use AA
+			if (passType > BSSM_FOG_Sb && passType < BSSM_WATER_STENCIL) {
+				eCustomState = ENABLE;
+				bEnable = 1;
 				break;
 			}
+			if (BSRenderState_StateStatus + bEnable + bMarkStatus == bInternalStatus) {
+				DebugLog("[SetTMSAAState] Early exit, should be fine");
+				BSRenderState_StateStatus += bMarkStatus;
+				DebugLog("[SetTMSAAState] Result: BSRenderState_StateStatus %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, bEnable, bMarkStatus);
+				return;
+			}
+			break;
 		}
 	}
 
-	// Recheck in change we updated the value
-	if (bInternalStatus == bEnable) {
+	if (BSRenderState_StateStatus && !eCustomState) {
+		DebugLog("[SetTMSAAState] StateStatus is present. Exiting. \n");
 		BSRenderState_StateStatus += bMarkStatus;
 		return;
 	}
@@ -167,15 +193,19 @@ void __cdecl SetTMSAAState(int bEnable, int bMarkStatus) {
 	else {
 		TMSAA_StateType = D3DRS_ADAPTIVETESS_Y;
 		if (bEnable) {
+			DebugLog("[SetTMSAAState] Enabling...");
 			TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C');
 		}
 		else {
+			DebugLog("[SetTMSAAState] Disabling...");
 			TMSAA_Format = D3DFMT_UNKNOWN;
 		}
 	}
+	bInternalStatus = bEnable;
 	SetRenderState(NiDX9Renderer::Get()->m_pkRenderState, TMSAA_StateType, TMSAA_Format, 0, 0);
 	BSRenderState_StateStatus += bMarkStatus;
-	bInternalStatus = bEnable;
+
+	DebugLog("[SetTMSAAState] Result: BSRenderState_StateStatus %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, bEnable, bMarkStatus);
 }
 
 // This one's cool.
@@ -203,7 +233,7 @@ void __fastcall SetBlendAlpha(BSShader* thiss, void*, NiGeometry::ShaderProperti
 		else {
 			SetSrcAndDstBlends(6, 7, 0);
 		}
-}
+	}
 }
 
 // Thx karut for help with jumping
