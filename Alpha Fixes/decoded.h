@@ -1079,3 +1079,16 @@ public:
 };
 STATIC_ASSERT(offsetof(NiTriBasedGeomData, m_usTriangles) == 0x40);
 STATIC_ASSERT(offsetof(NiTriBasedGeomData, m_usActiveTriangles) == 0x42);
+
+class NiDX9Renderer {
+public:
+	bool filler[0x8B8];
+	int* m_pkRenderState;
+	bool filler2[0xB80-0x8B8-4];
+	
+	static __forceinline NiDX9Renderer* Get() {
+		return *(NiDX9Renderer**)0x11C73B4;
+	};
+};
+STATIC_ASSERT(sizeof(NiDX9Renderer) == 0xB80);
+STATIC_ASSERT(offsetof(NiDX9Renderer, m_pkRenderState) == 0x8B8);
