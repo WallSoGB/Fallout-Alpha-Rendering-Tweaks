@@ -2265,7 +2265,7 @@ const char* BSRenderPass::GetPassName() {
 
 const char* BSRenderPass::GetCurrentPassName() {
 	BSRenderPass* pCurrPass = BSRenderPass::GetCurrentPass();
-	if (pCurrPass && pCurrPass->bEnabled)
+	if (pCurrPass && pCurrPass->bEnabled == 1)
 		return pCurrPass->GetPassName(pCurrPass->usPassEnum);
 	else
 		return "Pass not initialized";

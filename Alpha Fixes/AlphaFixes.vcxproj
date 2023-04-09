@@ -143,8 +143,8 @@
     </Link>
     <PostBuildEvent>
       <Message>Installing DLL...</Message>
-      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetFileName)"
-copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetName).pdb"
+      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetPath)" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
 copy "$(TargetDir)$(TargetName).pdb" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
@@ -176,7 +176,11 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     </Link>
     <PostBuildEvent>
       <Message>Installing DLL...</Message>
-      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetFileName)"</Command>
+      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
+copy "$(TargetPath)" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -210,8 +214,8 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     <PostBuildEvent>
       <Message>
       </Message>
-      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetFileName)"
-copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetName).pdb"
+      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetPath)" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
 copy "$(TargetDir)$(TargetName).pdb" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
@@ -250,8 +254,10 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     <PostBuildEvent>
       <Message>
       </Message>
-      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetFileName)"
-copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetName).pdb"
+      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
+copy "$(TargetPath)" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -288,8 +294,10 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     <PostBuildEvent>
       <Message>
       </Message>
-      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetFileName)"
-copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\FART\nvse\plugins\$(TargetName).pdb"
+      <Command>copy "$(TargetPath)" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "C:\Games\Modding\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
+copy "$(TargetPath)" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetFileName)"
+copy "$(TargetDir)$(TargetName).pdb" "$(LOCALAPPDATA)\ModOrganizer\TTW\mods\Fallout Alpha Rendering Tweaks - NVSE\nvse\plugins\$(TargetName).pdb"
 copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
