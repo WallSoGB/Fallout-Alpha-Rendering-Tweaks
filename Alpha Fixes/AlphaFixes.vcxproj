@@ -200,6 +200,7 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <FloatingPointModel>Fast</FloatingPointModel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <IntelJCCErratum>true</IntelJCCErratum>
     </ClCompile>
     <Link>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>

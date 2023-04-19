@@ -26,6 +26,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 #define BSRenderState_StateStatus *(UInt32*)0x11FFA28
 #define GPUVendor *(UInt32*)0x11F94B8
 #define pkD3DRenderState *(UInt32**)0x126F728
+#define ms_pkD3D9 (*(LPDIRECT3D9*)0x126F0D8)
 
 void(__cdecl* SetShaderPackage)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0xB4F710;
 void(__cdecl* SetShaderPackageGECK)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0x8F8670;
@@ -55,8 +56,10 @@ bool bIsGeck = 0;
 void __cdecl SetShaderPackageHook(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) {
 	_MESSAGE("[SetShaderPackageHook] User has a %s GPU", gpuVendor);
 	if (_strnicmp(gpuVendor, "nv", 2) && _strnicmp(gpuVendor, "at", 2)) {
-		_MESSAGE("[SetShaderPackageHook] GPU \"doesn't support\" TMSAA - spoofing as Nvidia");
-		gpuVendor = (char*)"nv";
+		if (ms_pkD3D9->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, 0, D3DRTYPE_SURFACE, (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C')) == S_OK) {
+			_MESSAGE("[SetShaderPackageHook] Unknown GPU supports TMSAA - spoofing as Nvidia");
+			gpuVendor = (char*)"nv";
+		}
 	};
 	if (bIsGeck) {
 		SetShaderPackageGECK(PixelShader, VertexShader, bForce1XShaders, checkVendors, gpuVendor, NumInstructionSlots);
@@ -76,41 +79,54 @@ namespace TMSAA {
 	};
 	int bInternalStatus = 0;
 
+	struct SavedStatus {
+		UInt32 bEnable;
+		UInt32 bMarkStatus;
+	};
+	static SavedStatus currentStatus;
+
 	inline void SetStatus(bool bEnable, bool bMarkStatus) {
 		BSRenderState_StateStatus = max(0, min(BSRenderState_StateStatus += bMarkStatus, 1));
 #if _DEBUG
-		_MESSAGE("[SetTMSAAState] Result: BSRenderState_StateStatus %x, bIsEnabled %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, bInternalStatus, bEnable, bMarkStatus);
+		_MESSAGE("[SetTMSAAState] Result: BSRenderState::StateStatus %x, bInternalStatus %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, bInternalStatus, bEnable, bMarkStatus);
 #endif
+	}
+
+	void __cdecl CollectState(UInt32 bEnable, UInt32 bMarkStatus) {
+		currentStatus.bEnable = bEnable;
+		currentStatus.bMarkStatus = bMarkStatus;
 	}
 
 	// Controls the Transparency Multisampling state based on the pass, preventing broken or barely visible effects
 	// Vanilla function has similar issue to the alpha blending one, where it is unable to reset the state due to a faulty check
 	// That's why disintegration effects are broken - they're using the TMSAA from the previous pass
 	// Additionally, TMSAA is being enabled on the last pass in the group for whatever reason, thus the need to handle them manually
-	void __cdecl SetState(int bEnable, int bMarkStatus) {
+	void __cdecl SetState(UInt32 bEnable, UInt32 bMarkStatus, BSRenderPass* pCurrentPass) {
 #if _DEBUG
 		_MESSAGE("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
 #endif
 
-		const BSRenderPass* pCurrentPass = BSRenderPass::GetCurrentPass();
 		UInt32 passType = 0;
-		bool bCandidatePass = 0;
+		bool bCandidatePass = false;
 		ForceState eCustomState = DEFAULT;
-
 		// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
 		if (pCurrentPass && pCurrentPass->bEnabled == 1) {
 			passType = pCurrentPass->usPassEnum;
 			bCandidatePass = true;
 		}
 		else {
+#if _DEBUG
+			if (passType != BSSM_TILE && passType != BSRenderPass::GetCurrentPassType()) {
+				_MESSAGE("[SetTMSAAState] Pass %i | %s was incorrect, using %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetPassName(BSRenderPass::GetCurrentPassType()));
+			}
+#endif
 			passType = BSRenderPass::GetCurrentPassType();
 		}
-
-		if (passType > 0 && passType < BSSM_BLOOD_SPLATTER_FLARE) {
 #if _DEBUG
-			_MESSAGE("[SetTMSAAState] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+		if (passType != BSSM_TILE)
+			_MESSAGE("[SetTMSAAState] Current pass: %i | %s (Global: %s)", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
 #endif
-
+		if (passType > 0 && passType < BSSM_BLOOD_SPLATTER_FLARE) {
 			switch (passType) {
 				// These passes have no importance for us
 			case BSSM_AMBIENT_OCCLUSION:
@@ -119,14 +135,19 @@ namespace TMSAA {
 			case BSSM_SKY_TEXTURE:
 			case BSSM_SKY_CLOUDS:
 			case BSSM_SKYBASEPOST:
+			case BSSM_SELFILLUM_SKY:
+			case BSSM_SKY_SUNGLARE:
 				break;
 				// These passes break with TMSAA
-			case BSSM_ZONLY_S:
 			case BSSM_ZONLY_TEXEFFECT:
 			case BSSM_ZONLY_TEXEFFECT_S:
 			case BSSM_3XZONLY_TEXEFFECT:
 			case BSSM_3XZONLY_TEXEFFECT_S:
 			case BSSM_PARTICLE_PREPASS:
+			case BSSM_NOLIGHTING_TexVC:
+			case BSSM_NOLIGHTING_TexVC_S:
+			case BSSM_NOLIGHTING_TexVC_FALLOFF:
+			case BSSM_NOLIGHTING_TexVC_FALLOFF_S:
 			case BSSM_NOLIGHTING_PSYS:
 			case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
 			case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
@@ -141,6 +162,9 @@ namespace TMSAA {
 			case BSSM_2x_TEXEFFECT:
 			case BSSM_2x_TEXEFFECT_S:
 				eCustomState = DISABLE;
+#if _DEBUG
+				//_MESSAGE("[SetTMSAAState] Disabling TMSAA for pass: %i | %s | (would be %s)\n", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+#endif
 				bEnable = 0;
 				break;
 			default:
@@ -153,8 +177,8 @@ namespace TMSAA {
 #if _DEBUG
 							_MESSAGE("[SetTMSAAState] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
 							_MESSAGE("[SetTMSAAState] [TMSAA check] Shader type: %s", BSRenderPass::GetCurrentPassShaderType());
-							/*const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-							_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");*/
+							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+							_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
 #endif
 							if (shaderProp->m_eShaderType != -1) {
 								if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
@@ -199,26 +223,51 @@ namespace TMSAA {
 		if (GPUVendor == 2) {
 			TMSAA_StateType = D3DRS_POINTSIZE;
 			if (bEnable) {
+#if _DEBUG
+				_MESSAGE("[SetTMSAAState] Enabling...");
+#endif
 				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '1');
 			}
 			else {
+#if _DEBUG
+				_MESSAGE("[SetTMSAAState] Disabling...");
+#endif
 				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '0');
 			}
 		}
 		else {
 			TMSAA_StateType = D3DRS_ADAPTIVETESS_Y;
 			if (bEnable) {
-				//_MESSAGE("[SetTMSAAState] Enabling...");
+#if _DEBUG
+				_MESSAGE("[SetTMSAAState] Enabling...");
+#endif
 				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C');
 			}
 			else {
-				//_MESSAGE("[SetTMSAAState] Disabling...");
+#if _DEBUG
+				_MESSAGE("[SetTMSAAState] Disabling...");
+#endif
 				TMSAA_Format = D3DFMT_UNKNOWN;
 			}
 		}
 		bInternalStatus = bEnable;
 		SetRenderState(pkD3DRenderState, TMSAA_StateType, TMSAA_Format, 0, 0);
 		SetStatus(bEnable, bMarkStatus);
+	}
+
+	void __cdecl SetStateEx(int bEnable, int bMarkStatus) {
+#if _DEBUG
+		_MESSAGE("\n[SetStateEx] Setting TMSAA...");
+#endif
+		SetState(bEnable, bMarkStatus, 0);
+	}
+
+	void __cdecl RenderPassImmediately(BSRenderPass* apRenderpass, RenderPassTypes uicurrentPass, bool bTestAlpha, bool bBlendAlpha, bool a4) {
+#if _DEBUG
+		_MESSAGE("\n[RenderPassImmediately] Setting TMSAA...");
+#endif
+		SetState(currentStatus.bEnable, currentStatus.bMarkStatus, apRenderpass);
+		CdeclCall(0xB994F0, apRenderpass, uicurrentPass, bTestAlpha, bBlendAlpha, a4);
 	}
 }
 
@@ -277,11 +326,20 @@ bool NVSEPlugin_Load(NVSEInterface* nvse) {
 		WriteRelJump(0xBBC5FD, SetBlendAlpha);
 		WriteRelCall(0xBC8F0B, SetBlendAlpha);
 
-		for (UInt32 callAddr : {0x714C54, 0xB9956C, 0xB99FAF, 0xB9A004, 0xB9A00E, 0xB9A187, 0xB9A1AB, 0xB9A1E0, 0xB9A215, 0xB9A24A, 0xB9A37E, 0xB9A38A, }) {
-			WriteRelCall(callAddr, TMSAA::SetState);
+		WriteRelJump(0xB99556, (UInt32)AlphaMalding);
+
+		// TMSAA
+		for (UInt32 callAddr : { 0x714C54, 0xB9956C, 0xB9A37E, 0xB9A38A}) {
+			WriteRelCall(callAddr, TMSAA::SetStateEx);
 		}
 
-		WriteRelJump(0xB99556, (UInt32)AlphaMalding);
+		for (UInt32 callAddr : {0xB99FAF, 0xB9A004, 0xB9A00E, 0xB9A187, 0xB9A1AB, 0xB9A1E0, 0xB9A215, 0xB9A24A }) {
+			WriteRelCall(callAddr, TMSAA::CollectState);
+		}
+
+		for (UInt32 callAddr : {0xB9A2A1, 0xB99FE4 }) {
+			WriteRelCall(callAddr, TMSAA::RenderPassImmediately);
+		}
 
 		WriteRelCall(0x4DB187, (UInt32)SetShaderPackageHook);
 		WriteRelCall(0x4DCB9D, (UInt32)SetShaderPackageHook);
