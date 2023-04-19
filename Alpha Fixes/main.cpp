@@ -128,19 +128,9 @@ namespace TMSAA {
 #endif
 		if (passType > 0 && passType < BSSM_BLOOD_SPLATTER_FLARE) {
 			switch (passType) {
-				// These passes have no importance for us
-			case BSSM_AMBIENT_OCCLUSION:
-			case BSSM_SKYBASEPRE:
-			case BSSM_SKY:
-			case BSSM_SKY_TEXTURE:
-			case BSSM_SKY_CLOUDS:
-			case BSSM_SKYBASEPOST:
-			case BSSM_SELFILLUM_SKY:
-			case BSSM_SKY_SUNGLARE:
-				break;
-				// These passes break with TMSAA
 			case BSSM_ZONLY_TEXEFFECT:
 			case BSSM_ZONLY_TEXEFFECT_S:
+			case BSSM_AMBIENT_OCCLUSION:
 			case BSSM_3XZONLY_TEXEFFECT:
 			case BSSM_3XZONLY_TEXEFFECT_S:
 			case BSSM_PARTICLE_PREPASS:
@@ -156,14 +146,27 @@ namespace TMSAA {
 			case BSSM_NOLIGHTING_STRIP_PSYS_SUBTEX:
 			case BSSM_3XTEXEFFECT:
 			case BSSM_3XTEXEFFECT_S:
+			case BSSM_DEPTH:
+			case BSSM_DEPTH_Mn:
+			case BSSM_SKYBASEPRE:
+			case BSSM_SKY:
+			case BSSM_SKY_TEXTURE:
+			case BSSM_SKY_CLOUDS:
 			case BSSM_PARTICLE:
 			case BSSM_TEXEFFECT:
 			case BSSM_TEXEFFECT_S:
 			case BSSM_2x_TEXEFFECT:
 			case BSSM_2x_TEXEFFECT_S:
+			case BSSM_PRECIPITATION_RAIN:
+			case BSSM_SKYBASEPOST:
+			case BSSM_SELFILLUM_SKY:
+			case BSSM_SKY_SUNGLARE:
+			case BSSM_SELFILLUM_SKY_SUN:
+			case BSSM_SELFILLUM_SKY_CLOUDS:
+			case BSSM_SELFILLUM_SKY_SKY_QUAD:
 				eCustomState = DISABLE;
 #if _DEBUG
-				//_MESSAGE("[SetTMSAAState] Disabling TMSAA for pass: %i | %s | (would be %s)\n", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+				_MESSAGE("[SetTMSAAState] Disabling TMSAA for pass: %i | %s | (would be %s)\n", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
 #endif
 				bEnable = 0;
 				break;
@@ -176,9 +179,12 @@ namespace TMSAA {
 						if (shaderProp) {
 #if _DEBUG
 							_MESSAGE("[SetTMSAAState] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
-							_MESSAGE("[SetTMSAAState] [TMSAA check] Shader type: %s", BSRenderPass::GetCurrentPassShaderType());
-							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-							_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
+							NiShadeProperty::ShaderType eShaderType = shaderProp->m_eShaderType;
+							_MESSAGE("[SetTMSAAState] [TMSAA check] Shader type: %s", NiShadeProperty::GetShaderType(eShaderType));
+							if (eShaderType != NiShadeProperty::kType_Sky && eShaderType != NiShadeProperty::kType_TallGrass) {
+								const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+								_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
+							}
 #endif
 							if (shaderProp->m_eShaderType != -1) {
 								if ((shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
@@ -194,7 +200,7 @@ namespace TMSAA {
 					}
 				}
 				// Grass must always use AA
-				if (passType > BSSM_FOG_Sb && passType < BSSM_WATER_STENCIL) {
+				if (passType >= BSSM_GRASS_DIRONLY_LF && passType <= BSSM_GRASS_SHADOW_LSB) {
 					eCustomState = ENABLE;
 					bEnable = 1;
 					break;
@@ -204,15 +210,7 @@ namespace TMSAA {
 			}
 		}
 
-		if (BSRenderState_StateStatus && !eCustomState) {
-#if _DEBUG
-			_MESSAGE("[SetTMSAAState] StateStatus is present. Exiting. \n");
-#endif
-			SetStatus(bEnable, bMarkStatus);
-			return;
-		}
-
-		if (BSRenderState_StateStatus + bEnable + bMarkStatus == bInternalStatus) {
+		if ((BSRenderState_StateStatus == bMarkStatus && bInternalStatus == bEnable && !eCustomState) || BSRenderState_StateStatus && !eCustomState) {
 #if _DEBUG
 			_MESSAGE("[SetTMSAAState] Early exit, should be fine");
 #endif
@@ -287,7 +285,7 @@ void __fastcall SetBlendAlpha(BSShader* thiss, void*, NiGeometry::ShaderProperti
 	bool bEnableBlend = ((shadeProp->fAlpha < 1.0f && ((shadeProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Fade) == 0)) || shadeProp->fFadeAlpha < 1.0f || bBlend);
 	if (bEnableBlend) {
 #if _DEBUG
-		_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s", BSRenderPass::GetCurrentPassName(), shadeProp->GetShaderType());
+		_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s\n", BSRenderPass::GetCurrentPassName(), shadeProp->GetShaderType());
 #endif
 		SetAlphaBlendEnable(1, 0);
 		if (bBlend) {
