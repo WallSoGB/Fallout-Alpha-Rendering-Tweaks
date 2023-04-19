@@ -52,7 +52,7 @@ const char* GetModelPath(TESObjectREFR* ref) {
 
 bool bIsGeck = 0;
 
-// Reports GPU as Nvidia - Game forcibly disables TMSAA on Intel, despite it supporting ATOC format nowadays (kinda jank tho)
+// Reports GPU as Nvidia - Game forcibly disables TMSAA on Intel (any non Nvidia or AMD GPU tbh), despite it supporting ATOC format nowadays
 void __cdecl SetShaderPackageHook(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) {
 	_MESSAGE("[SetShaderPackageHook] User has a %s GPU", gpuVendor);
 	if (_strnicmp(gpuVendor, "nv", 2) && _strnicmp(gpuVendor, "at", 2)) {
@@ -98,9 +98,6 @@ namespace TMSAA {
 	}
 
 	// Controls the Transparency Multisampling state based on the pass, preventing broken or barely visible effects
-	// Vanilla function has similar issue to the alpha blending one, where it is unable to reset the state due to a faulty check
-	// That's why disintegration effects are broken - they're using the TMSAA from the previous pass
-	// Additionally, TMSAA is being enabled on the last pass in the group for whatever reason, thus the need to handle them manually
 	void __cdecl SetState(UInt32 bEnable, UInt32 bMarkStatus, BSRenderPass* pCurrentPass) {
 #if _DEBUG
 		_MESSAGE("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
@@ -210,7 +207,7 @@ namespace TMSAA {
 			}
 		}
 
-		if ((BSRenderState_StateStatus == bMarkStatus && bInternalStatus == bEnable && !eCustomState) || BSRenderState_StateStatus && !eCustomState) {
+		if ((BSRenderState_StateStatus == bMarkStatus && bInternalStatus == bEnable || BSRenderState_StateStatus) && !eCustomState) {
 #if _DEBUG
 			_MESSAGE("[SetTMSAAState] Early exit, should be fine");
 #endif
@@ -253,6 +250,7 @@ namespace TMSAA {
 		SetStatus(bEnable, bMarkStatus);
 	}
 
+	// Mostly used at the end or in the middle of a render pass, so it doesn't need to grab the latest one
 	void __cdecl SetStateEx(int bEnable, int bMarkStatus) {
 #if _DEBUG
 		_MESSAGE("\n[SetStateEx] Setting TMSAA...");
@@ -260,6 +258,7 @@ namespace TMSAA {
 		SetState(bEnable, bMarkStatus, 0);
 	}
 
+	// Grabs the latest render pass. Called at the beginning of a render pass - shocker, I know.
 	void __cdecl RenderPassImmediately(BSRenderPass* apRenderpass, RenderPassTypes uicurrentPass, bool bTestAlpha, bool bBlendAlpha, bool a4) {
 #if _DEBUG
 		_MESSAGE("\n[RenderPassImmediately] Setting TMSAA...");
