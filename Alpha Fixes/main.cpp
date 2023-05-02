@@ -28,6 +28,10 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 #define pkD3DRenderState *(UInt32**)0x126F728
 #define ms_pkD3D9 (*(LPDIRECT3D9*)0x126F0D8)
 
+static D3DFORMAT TMSAA_FmtEnable;
+static D3DFORMAT TMSAA_FmtDisable;
+static D3DRENDERSTATETYPE TMSAA_StateType;
+
 void(__cdecl* SetShaderPackage)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0xB4F710;
 void(__cdecl* SetShaderPackageGECK)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0x8F8670;
 
@@ -70,25 +74,24 @@ void __cdecl SetShaderPackageHook(int PixelShader, int VertexShader, bool bForce
 }
 
 namespace TMSAA {
-	D3DFORMAT TMSAA_Format;
-	D3DRENDERSTATETYPE TMSAA_StateType;
 	enum ForceState : UInt32 {
 		DEFAULT = 0,
 		ENABLE = 1,
 		DISABLE = 2
 	};
-	int bInternalStatus = 0;
+	static UInt32 uiInternalStatus = false;
 
 	struct SavedStatus {
-		UInt32 bEnable;
-		UInt32 bMarkStatus;
+		bool bEnable;
+		bool bMarkStatus;
 	};
+
 	static SavedStatus currentStatus;
 
 	inline void SetStatus(bool bEnable, bool bMarkStatus) {
 		BSRenderState_StateStatus = max(0, min(BSRenderState_StateStatus += bMarkStatus, 1));
 #if _DEBUG
-		_MESSAGE("[SetTMSAAState] Result: BSRenderState::StateStatus %x, bInternalStatus %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, bInternalStatus, bEnable, bMarkStatus);
+		_MESSAGE("[SetTMSAAState] Result: BSRenderState::StateStatus %x, uiInternalStatus %x, bEnable %x, bMarkStatus %x\n", BSRenderState_StateStatus, uiInternalStatus, bEnable, bMarkStatus);
 #endif
 	}
 
@@ -106,6 +109,7 @@ namespace TMSAA {
 		UInt32 passType = 0;
 		bool bCandidatePass = false;
 		ForceState eCustomState = DEFAULT;
+
 		// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
 		if (pCurrentPass && pCurrentPass->bEnabled == 1) {
 			passType = pCurrentPass->usPassEnum;
@@ -203,7 +207,7 @@ namespace TMSAA {
 			}
 		}
 
-		if ((BSRenderState_StateStatus == bMarkStatus && bInternalStatus == bEnable || BSRenderState_StateStatus) && !eCustomState) {
+		if ((BSRenderState_StateStatus == bMarkStatus && uiInternalStatus == bEnable || BSRenderState_StateStatus) && !eCustomState) {
 #if _DEBUG
 			_MESSAGE("[SetTMSAAState] Early exit, should be fine");
 #endif
@@ -211,37 +215,21 @@ namespace TMSAA {
 			return;
 		}
 
-		if (GPUVendor == 2) {
-			TMSAA_StateType = D3DRS_POINTSIZE;
-			if (bEnable) {
+		D3DFORMAT TMSAA_Format;
+
+		if (bEnable) {
 #if _DEBUG
-				_MESSAGE("[SetTMSAAState] Enabling...");
+			_MESSAGE("[SetTMSAAState] Enabling...");
 #endif
-				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '1');
-			}
-			else {
-#if _DEBUG
-				_MESSAGE("[SetTMSAAState] Disabling...");
-#endif
-				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '0');
-			}
+			TMSAA_Format = TMSAA_FmtEnable;
 		}
 		else {
-			TMSAA_StateType = D3DRS_ADAPTIVETESS_Y;
-			if (bEnable) {
 #if _DEBUG
-				_MESSAGE("[SetTMSAAState] Enabling...");
+			_MESSAGE("[SetTMSAAState] Disabling...");
 #endif
-				TMSAA_Format = (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C');
-			}
-			else {
-#if _DEBUG
-				_MESSAGE("[SetTMSAAState] Disabling...");
-#endif
-				TMSAA_Format = D3DFMT_UNKNOWN;
-			}
+			TMSAA_Format = TMSAA_FmtDisable;
 		}
-		bInternalStatus = bEnable;
+		uiInternalStatus = bEnable;
 		SetRenderState(pkD3DRenderState, TMSAA_StateType, TMSAA_Format, 0, 0);
 		SetStatus(bEnable, bMarkStatus);
 	}
@@ -310,13 +298,33 @@ void __fastcall SetBlendAlpha(BSShader* thiss, void*, NiGeometry::ShaderProperti
 	}
 }
 
+void MessageHandler(NVSEMessagingInterface::Message* msg)
+{
+	if (msg->type == NVSEMessagingInterface::kMessage_DeferredInit)
+	{
+		_MESSAGE("[SetShaderPackageHook] GPU is %i", GPUVendor);
+		if (GPUVendor == 2) {
+			TMSAA_StateType = D3DRS_POINTSIZE;
+			TMSAA_FmtEnable = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '1');
+			TMSAA_FmtDisable = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '0');
+		}
+		else {
+			TMSAA_StateType = D3DRS_ADAPTIVETESS_Y;
+			TMSAA_FmtEnable = (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C');
+			TMSAA_FmtDisable = D3DFMT_UNKNOWN;
+		}
+	}
+}
+
 bool NVSEPlugin_Load(NVSEInterface* nvse) {
 	char iniDir[MAX_PATH];
 	GetModuleFileNameA(GetModuleHandle(NULL), iniDir, MAX_PATH);
 	strcpy((char*)(strrchr(iniDir, '\\') + 1), "Data\\NVSE\\Plugins\\FART.ini");
-	bool bForceTMSAA = GetPrivateProfileInt("Main", "bForceTMSAA", 1, iniDir);
+	bool bForceTMSAA = GetPrivateProfileInt("Main", "bForceTMSAA", 0, iniDir);
 	bool bAlphaBlendFix = GetPrivateProfileInt("Main", "bAlphaBlendFix", 1, iniDir);
 	bool bTMSAAPatches = GetPrivateProfileInt("Main", "bTMSAAPatches", 1, iniDir);
+
+	((NVSEMessagingInterface*)nvse->QueryInterface(kInterface_Messaging))->RegisterListener(nvse->GetPluginHandle(), "NVSE", MessageHandler);
 
 	if (!nvse->isEditor) {
 		if (bAlphaBlendFix) {
