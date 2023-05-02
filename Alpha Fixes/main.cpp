@@ -27,6 +27,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 #define GPUVendor *(UInt32*)0x11F94B8
 #define pkD3DRenderState *(UInt32**)0x126F728
 #define ms_pkD3D9 (*(LPDIRECT3D9*)0x126F0D8)
+#define bTransparencyMultisampling (*(bool*)0x11F9421)
 
 static D3DFORMAT TMSAA_FmtEnable;
 static D3DFORMAT TMSAA_FmtDisable;
@@ -102,7 +103,7 @@ namespace TMSAA {
 
 	// Controls the Transparency Multisampling state based on the pass, preventing broken or barely visible effects
 	void __cdecl SetState(UInt32 bEnable, UInt32 bMarkStatus, BSRenderPass* pCurrentPass) {
-		if (GPUVendor != 3) {
+		if (bTransparencyMultisampling) {
 #if _DEBUG
 			_MESSAGE("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
 #endif
