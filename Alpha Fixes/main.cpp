@@ -102,135 +102,137 @@ namespace TMSAA {
 
 	// Controls the Transparency Multisampling state based on the pass, preventing broken or barely visible effects
 	void __cdecl SetState(UInt32 bEnable, UInt32 bMarkStatus, BSRenderPass* pCurrentPass) {
+		if (GPUVendor != 3) {
 #if _DEBUG
-		_MESSAGE("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
+			_MESSAGE("[SetTMSAAState] Input values: %i, %i", bEnable, bMarkStatus);
 #endif
 
-		UInt32 passType = 0;
-		bool bCandidatePass = false;
-		ForceState eCustomState = DEFAULT;
+			UInt32 passType = 0;
+			bool bCandidatePass = false;
+			ForceState eCustomState = DEFAULT;
 
-		// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
-		if (pCurrentPass && pCurrentPass->bEnabled == 1) {
-			passType = pCurrentPass->usPassEnum;
-			bCandidatePass = true;
-		}
-		else {
-#if _DEBUG
-			if (passType != BSSM_TILE && passType != BSRenderPass::GetCurrentPassType()) {
-				_MESSAGE("[SetTMSAAState] Pass %i | %s was incorrect, using %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetPassName(BSRenderPass::GetCurrentPassType()));
+			// Yes, that bEnabled needs to be checked against one. Not an error. If it's above 1, then it doesn't have geometry.
+			if (pCurrentPass && pCurrentPass->bEnabled == 1) {
+				passType = pCurrentPass->usPassEnum;
+				bCandidatePass = true;
 			}
-#endif
-			passType = BSRenderPass::GetCurrentPassType();
-		}
+			else {
 #if _DEBUG
-		if (passType != BSSM_TILE)
-			_MESSAGE("[SetTMSAAState] Current pass: %i | %s (Global: %s)", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+				if (passType != BSSM_TILE && passType != BSRenderPass::GetCurrentPassType()) {
+					_MESSAGE("[SetTMSAAState] Pass %i | %s was incorrect, using %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetPassName(BSRenderPass::GetCurrentPassType()));
+				}
 #endif
-		if (passType > 0 && passType < BSSM_BLOOD_SPLATTER_FLARE) {
-			switch (passType) {
-			case BSSM_ZONLY_TEXEFFECT:
-			case BSSM_ZONLY_TEXEFFECT_S:
-			case BSSM_AMBIENT_OCCLUSION:
-			case BSSM_3XZONLY_TEXEFFECT:
-			case BSSM_3XZONLY_TEXEFFECT_S:
-			case BSSM_PARTICLE_PREPASS:
-			case BSSM_NOLIGHTING_TexVC:
-			case BSSM_NOLIGHTING_TexVC_S:
-			case BSSM_NOLIGHTING_TexVC_FALLOFF:
-			case BSSM_NOLIGHTING_TexVC_FALLOFF_S:
-			case BSSM_NOLIGHTING_PSYS:
-			case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
-			case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
-			case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET_PREMULT_ALPHA:
-			case BSSM_NOLIGHTING_STRIP_PSYS:
-			case BSSM_NOLIGHTING_STRIP_PSYS_SUBTEX:
-			case BSSM_3XTEXEFFECT:
-			case BSSM_3XTEXEFFECT_S:
-			case BSSM_DEPTH:
-			case BSSM_DEPTH_Mn:
-			case BSSM_SKYBASEPRE:
-			case BSSM_SKY:
-			case BSSM_SKY_TEXTURE:
-			case BSSM_SKY_CLOUDS:
-			case BSSM_PARTICLE:
-			case BSSM_TEXEFFECT:
-			case BSSM_TEXEFFECT_S:
-			case BSSM_2x_TEXEFFECT:
-			case BSSM_2x_TEXEFFECT_S:
-			case BSSM_PRECIPITATION_RAIN:
-			case BSSM_SKYBASEPOST:
-			case BSSM_SELFILLUM_SKY:
-			case BSSM_SKY_SUNGLARE:
-			case BSSM_SELFILLUM_SKY_SUN:
-			case BSSM_SELFILLUM_SKY_CLOUDS:
-			case BSSM_SELFILLUM_SKY_SKY_QUAD:
-				eCustomState = DISABLE;
+				passType = BSRenderPass::GetCurrentPassType();
+			}
 #if _DEBUG
-				_MESSAGE("[SetTMSAAState] Disabling TMSAA for pass: %i | %s | (would be %s)\n", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+			if (passType != BSSM_TILE)
+				_MESSAGE("[SetTMSAAState] Current pass: %i | %s (Global: %s)", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
 #endif
-				bEnable = 0;
-				break;
-			default:
-				// Check for "No_Transparency_Multisampling"
-				if (bCandidatePass && pCurrentPass->pGeometry) {
-					const NiGeometry* pGeo = pCurrentPass->pGeometry;
-					const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
-					if (pGeo && shaderProp) {
+			if (passType > 0 && passType < BSSM_BLOOD_SPLATTER_FLARE) {
+				switch (passType) {
+				case BSSM_ZONLY_TEXEFFECT:
+				case BSSM_ZONLY_TEXEFFECT_S:
+				case BSSM_AMBIENT_OCCLUSION:
+				case BSSM_3XZONLY_TEXEFFECT:
+				case BSSM_3XZONLY_TEXEFFECT_S:
+				case BSSM_PARTICLE_PREPASS:
+				case BSSM_NOLIGHTING_TexVC:
+				case BSSM_NOLIGHTING_TexVC_S:
+				case BSSM_NOLIGHTING_TexVC_FALLOFF:
+				case BSSM_NOLIGHTING_TexVC_FALLOFF_S:
+				case BSSM_NOLIGHTING_PSYS:
+				case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET:
+				case BSSM_NOLIGHTING_PSYS_PREMULT_ALPHA:
+				case BSSM_NOLIGHTING_PSYS_SUBTEX_OFFSET_PREMULT_ALPHA:
+				case BSSM_NOLIGHTING_STRIP_PSYS:
+				case BSSM_NOLIGHTING_STRIP_PSYS_SUBTEX:
+				case BSSM_3XTEXEFFECT:
+				case BSSM_3XTEXEFFECT_S:
+				case BSSM_DEPTH:
+				case BSSM_DEPTH_Mn:
+				case BSSM_SKYBASEPRE:
+				case BSSM_SKY:
+				case BSSM_SKY_TEXTURE:
+				case BSSM_SKY_CLOUDS:
+				case BSSM_PARTICLE:
+				case BSSM_TEXEFFECT:
+				case BSSM_TEXEFFECT_S:
+				case BSSM_2x_TEXEFFECT:
+				case BSSM_2x_TEXEFFECT_S:
+				case BSSM_PRECIPITATION_RAIN:
+				case BSSM_SKYBASEPOST:
+				case BSSM_SELFILLUM_SKY:
+				case BSSM_SKY_SUNGLARE:
+				case BSSM_SELFILLUM_SKY_SUN:
+				case BSSM_SELFILLUM_SKY_CLOUDS:
+				case BSSM_SELFILLUM_SKY_SKY_QUAD:
+					eCustomState = DISABLE;
 #if _DEBUG
-						_MESSAGE("[SetTMSAAState] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
-						NiShadeProperty::ShaderType eShaderType = shaderProp->m_eShaderType;
-						_MESSAGE("[SetTMSAAState] [TMSAA check] Shader type: %s", NiShadeProperty::GetShaderType(eShaderType));
-						if (eShaderType != NiShadeProperty::kType_Sky && eShaderType != NiShadeProperty::kType_TallGrass) {
-							const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
-							_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
-						}
+					_MESSAGE("[SetTMSAAState] Disabling TMSAA for pass: %i | %s | (would be %s)\n", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
 #endif
-						if (shaderProp->m_eShaderType != -1 && (shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
+					bEnable = 0;
+					break;
+				default:
+					// Check for "No_Transparency_Multisampling"
+					if (bCandidatePass && pCurrentPass->pGeometry) {
+						const NiGeometry* pGeo = pCurrentPass->pGeometry;
+						const BSShaderProperty* shaderProp = (BSShaderProperty*)pGeo->shaderProperties.m_shadeProperty;
+						if (pGeo && shaderProp) {
 #if _DEBUG
-							_MESSAGE("[SetTMSAAState] [Default] [TMSAA check] Disabling...");
+							_MESSAGE("[SetTMSAAState] [TMSAA check] Current pass: %i | %s | %s", passType, BSRenderPass::GetPassName(passType), BSRenderPass::GetCurrentPassName());
+							NiShadeProperty::ShaderType eShaderType = shaderProp->m_eShaderType;
+							_MESSAGE("[SetTMSAAState] [TMSAA check] Shader type: %s", NiShadeProperty::GetShaderType(eShaderType));
+							if (eShaderType != NiShadeProperty::kType_Sky && eShaderType != NiShadeProperty::kType_TallGrass) {
+								const char* model = GetModelPath(FindReferenceFor3D((NiNode*)pGeo));
+								_MESSAGE("[SetTMSAAState] [TMSAA check] Current geo: %s, %s", pGeo->m_pkParent->m_kName, model ? model : "Unknown");
+							}
 #endif
-							eCustomState = DISABLE;
-							bEnable = 0;
-							break;
+							if (shaderProp->m_eShaderType != -1 && (shaderProp->BSShaderFlags[1] & BSShaderProperty::kFlags2_No_Transparency_Multisampling) != 0) {
+#if _DEBUG
+								_MESSAGE("[SetTMSAAState] [Default] [TMSAA check] Disabling...");
+#endif
+								eCustomState = DISABLE;
+								bEnable = 0;
+								break;
+							}
 						}
 					}
-				}
-				// Grass must always use AA
-				if (passType >= BSSM_GRASS_DIRONLY_LF && passType <= BSSM_GRASS_SHADOW_LSB) {
-					eCustomState = ENABLE;
-					bEnable = 1;
+					// Grass must always use AA
+					if (passType >= BSSM_GRASS_DIRONLY_LF && passType <= BSSM_GRASS_SHADOW_LSB) {
+						eCustomState = ENABLE;
+						bEnable = 1;
+						break;
+					}
+
 					break;
 				}
-
-				break;
 			}
-		}
 
-		if ((BSRenderState_StateStatus == bMarkStatus && uiInternalStatus == bEnable || BSRenderState_StateStatus) && !eCustomState) {
+			if ((BSRenderState_StateStatus == bMarkStatus && uiInternalStatus == bEnable || BSRenderState_StateStatus) && !eCustomState) {
 #if _DEBUG
-			_MESSAGE("[SetTMSAAState] Early exit, should be fine");
+				_MESSAGE("[SetTMSAAState] Early exit, should be fine");
 #endif
-			SetStatus(bEnable, bMarkStatus);
-			return;
-		}
+				SetStatus(bEnable, bMarkStatus);
+				return;
+			}
 
-		D3DFORMAT TMSAA_Format;
+			D3DFORMAT TMSAA_Format;
 
-		if (bEnable) {
+			if (bEnable) {
 #if _DEBUG
-			_MESSAGE("[SetTMSAAState] Enabling...");
+				_MESSAGE("[SetTMSAAState] Enabling...");
 #endif
-			TMSAA_Format = TMSAA_FmtEnable;
-		}
-		else {
+				TMSAA_Format = TMSAA_FmtEnable;
+			}
+			else {
 #if _DEBUG
-			_MESSAGE("[SetTMSAAState] Disabling...");
+				_MESSAGE("[SetTMSAAState] Disabling...");
 #endif
-			TMSAA_Format = TMSAA_FmtDisable;
+				TMSAA_Format = TMSAA_FmtDisable;
+			}
+			uiInternalStatus = bEnable;
+			SetRenderState(pkD3DRenderState, TMSAA_StateType, TMSAA_Format, 0, 0);
 		}
-		uiInternalStatus = bEnable;
-		SetRenderState(pkD3DRenderState, TMSAA_StateType, TMSAA_Format, 0, 0);
 		SetStatus(bEnable, bMarkStatus);
 	}
 
@@ -302,7 +304,6 @@ void MessageHandler(NVSEMessagingInterface::Message* msg)
 {
 	if (msg->type == NVSEMessagingInterface::kMessage_DeferredInit)
 	{
-		_MESSAGE("[SetShaderPackageHook] GPU is %i", GPUVendor);
 		if (GPUVendor == 2) {
 			TMSAA_StateType = D3DRS_POINTSIZE;
 			TMSAA_FmtEnable = (D3DFORMAT)MAKEFOURCC('A', '2', 'M', '1');
