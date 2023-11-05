@@ -109,7 +109,7 @@ class Tokenizer
 {
 public:
 	Tokenizer(const char* src, const char* delims);
-	~Tokenizer();
+	~Tokenizer() = default;
 
 	// these return the offset of token in src, or -1 if no token
 	UInt32 NextToken(std::string& outStr);
@@ -120,6 +120,36 @@ private:
 	std::string m_delims;
 	size_t		m_offset;
 	std::string m_data;
+};
+
+
+// For parsing lexical tokens inside script text line-by-line, while skipping over those inside comments.
+// Strings are passed as a single token (including the '"' characters).
+// Everything else will have to be manually handled.
+class ScriptTokenizer
+{
+public:
+	ScriptTokenizer(std::string_view scriptText);
+	~ScriptTokenizer() = default;
+
+	// Returns true if a new line could be read, false at the end of the script.
+	// Skips over commented-out lines and empty lines.
+	[[nodiscard]] bool TryLoadNextLine();
+
+	// Gets the next space-separated token from the loaded line, ignoring tokens placed inside comments.
+	// Returns an empty string_view if no line is loaded / end-of-line is reached.
+	std::string_view GetNextLineToken();
+
+	// Gets the entire line, for manual tokenizing.
+	// Returns an empty string_view if no line is loaded.
+	std::string_view GetLineText();
+
+private:
+	std::string_view m_scriptText;
+	size_t			 m_scriptOffset = 0;
+	std::vector<std::string_view> m_loadedLineTokens;
+	size_t			 m_tokenOffset = 0;
+	bool			 m_inMultilineComment = false;
 };
 
 #if RUNTIME
@@ -251,37 +281,6 @@ const char* GetFormName(UInt32 formId);
 
 #endif
 
-typedef void* (*_FormHeap_Allocate)(UInt32 size);
-extern const _FormHeap_Allocate FormHeap_Allocate;
-
-template <typename T, const UInt32 ConstructorPtr = 0, typename... Args>
-T* New(Args &&... args)
-{
-	auto* alloc = FormHeap_Allocate(sizeof(T));
-	if constexpr (ConstructorPtr)
-	{
-		ThisStdCall(ConstructorPtr, alloc, std::forward<Args>(args)...);
-	}
-	else
-	{
-		memset(alloc, 0, sizeof(T));
-	}
-	return static_cast<T*>(alloc);
-}
-
-typedef void (*_FormHeap_Free)(void* ptr);
-extern const _FormHeap_Free FormHeap_Free;
-
-template <typename T, const UInt32 DestructorPtr = 0, typename... Args>
-void Delete(T* t, Args &&... args)
-{
-	if constexpr (DestructorPtr)
-	{
-		ThisStdCall(DestructorPtr, t, std::forward<Args>(args)...);
-	}
-	FormHeap_Free(t);
-}
-
 template <typename T>
 using game_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
@@ -310,3 +309,7 @@ UInt8* GetParentBasePtr(void* addressOfReturnAddress, bool lambda = false);
 //Example in https://en.cppreference.com/w/cpp/utility/variant/visit
 //Allows function overloading with c++ lambdas.
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+
+#define ASSERT_SIZE(a, b) static_assert(sizeof(a) == b, "Wrong structure size!");
+#define ASSERT_OFFSET(a, b, c) static_assert(offsetof(a, b) == c, "Wrong member offset!");
+#define CREATE_OBJECT(CLASS, ADDRESS) static CLASS* CreateObject() { return StdCall<CLASS*>(ADDRESS); };
