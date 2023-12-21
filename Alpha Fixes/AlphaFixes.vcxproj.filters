@@ -26,6 +26,9 @@
     <ClCompile Include="internal\Bethesda\BSBatchRenderer.cpp">
       <Filter>internal\Bethesda</Filter>
     </ClCompile>
+    <ClCompile Include="internal\Gamebryo\NiBound.cpp">
+      <Filter>internal\Gamebryo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\nvse\nvse\SafeWrite.h">

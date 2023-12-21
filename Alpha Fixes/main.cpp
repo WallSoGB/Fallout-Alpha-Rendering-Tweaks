@@ -7,6 +7,8 @@
 #include "NiAlphaProperty.hpp"
 #include "NiGeometry.hpp"
 #include "NiStencilProperty.hpp"
+#include "NiBound.hpp"
+#include "NiCamera.hpp"
 
 NVSEInterface* g_nvseInterface{};
 IDebugLog	   gLog("logs\\FART.log");
@@ -15,15 +17,13 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 250;
+	info->version = 251;
 	return true;
 }
 
 // TODO
 // Fix alpha blending issues when two alpha blended objects overlap
 // Die in the process
-
-#define GPUVendor *(UInt32*)0x11F94B8
 
 void(__cdecl* SetShaderPackage)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0xB4F710;
 void(__cdecl* SetShaderPackageGECK)(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) = (void(__cdecl*)(int, int, bool, int, char*, int))0x8F8670;
@@ -32,6 +32,8 @@ void(__cdecl* SetAlphaBlendEnable)(int, int) = (void(__cdecl*)(int, int))0xB97FA
 void(__cdecl* SetSrcAndDstBlends)(int, int, int) = (void(__cdecl*)(int, int, int))0xB97FF0;
 
 bool bIsGeck = 0;
+static bool bForcePatchParticles;
+
 
 // Reports GPU as Nvidia - Game forcibly disables TMSAA on Intel (any non Nvidia or AMD GPU tbh), despite it supporting ATOC format nowadays
 void __cdecl SetShaderPackageHook(int PixelShader, int VertexShader, bool bForce1XShaders, int checkVendors, char* gpuVendor, int NumInstructionSlots) {
@@ -56,7 +58,7 @@ SInt32 PassSort(UInt16 pass1, UInt16 pass2) {
 
 
 // Main fix for TMSAA
-// Game checks for TexEffect passes and... specifically assigns them a group that is destinied to use TMSAA. Mistake?
+// Game checks for TexEffect passes and... specifically assigns them a group that is destined to use TMSAA. Mistake?
 void __fastcall RegisterPassGeometryGroup(BSBatchRenderer* apThis, void*, BSShaderProperty::RenderPass* apRenderPass, BSShaderManager::RenderPassType auiPassEnum) {
 	if (!apRenderPass)
 		return;
@@ -135,8 +137,6 @@ void __fastcall RegisterPassGeometryGroup(BSBatchRenderer* apThis, void*, BSShad
 		apThis->pAccumStructures4[uiGroup].AddTail(eAlphaType, apRenderPass);
 }
 
-static bool bForcePatchParticles;
-
 // RenderPassImmediately does not use alpha defined by RegisterPassGeometryGroup (odd), so we need to add TMSAA check here as well.
 void __cdecl CheckFlags(bool abEnable, bool abCount) {
 	BSShaderProperty::RenderPass* pPass = BSShaderProperty::RenderPass::GetCurrentPass();
@@ -154,6 +154,34 @@ void __cdecl CheckFlags(bool abEnable, bool abCount) {
 	}
 }
 
+SInt32 __cdecl AlphaSorter(BSShaderProperty::RenderPass** apPassPtrOne, BSShaderProperty::RenderPass** apPassPtrTwo) {
+	if ((*apPassPtrTwo)->pGeometry == (*apPassPtrOne)->pGeometry)
+		return 0;
+
+	NiBound* pBoundA = (*apPassPtrTwo)->pGeometry->m_kWorldBound;
+	NiBound* pBoundB = (*apPassPtrOne)->pGeometry->m_kWorldBound;
+	NiBound* pDefaultBound = NiBound::GetGlobalWorldBound();
+
+	if (!pBoundA)
+		pBoundA = pDefaultBound;
+
+	if (!pBoundB)
+		pBoundB = pDefaultBound;
+
+	NiPoint3 kCameraDirection = (*(NiCamera**)0x11FFE38)->GetWorldDirection();
+	float a = kCameraDirection.Dot(pBoundA->m_kCenter) - pBoundA->m_fRadius;
+	float b = kCameraDirection.Dot(pBoundB->m_kCenter) - pBoundB->m_fRadius;
+
+	if (FloatEqual(a,b)) {
+		return 0;
+	}
+	else if (a <= b) {
+		return -1;
+	}
+	else {
+		return 1;
+	}
+}
 
 // This one's cool.
 // Game doesn't reset the render state, so objects *not* having alpha blending inherit the state from the one that did.
@@ -190,6 +218,7 @@ bool NVSEPlugin_Load(NVSEInterface* nvse) {
 	bool bAlphaBlendFix = GetPrivateProfileInt("Main", "bAlphaBlendFix", 1, iniDir);
 	bool bTexEffectFix = GetPrivateProfileInt("Main", "bTexEffectFix", 1, iniDir);
 	bForcePatchParticles = GetPrivateProfileInt("Main", "bForcePatchParticles", 1, iniDir);
+	bool bAlphaFlickerFix = GetPrivateProfileInt("Main", "bAlphaFlickerFix", 1, iniDir);
 
 	if (!nvse->isEditor) {
 		if (bAlphaBlendFix) {
@@ -210,6 +239,12 @@ bool NVSEPlugin_Load(NVSEInterface* nvse) {
 		if (bForceTMSAA) {
 			ReplaceCall(0x4DB187, (UInt32)SetShaderPackageHook);
 			ReplaceCall(0x4DCB9D, (UInt32)SetShaderPackageHook);
+		}
+
+		if (bAlphaFlickerFix) {
+			SafeWrite32(0xB99A29 + 1, (UInt32)AlphaSorter);
+			SafeWrite32(0xB99A39 + 1, (UInt32)AlphaSorter);
+			SafeWriteBuf(0xB63500, (void*)"\x6A\x01\x8B\x51\x08\x90\x90\x90", 8);
 		}
 	}
 	else {

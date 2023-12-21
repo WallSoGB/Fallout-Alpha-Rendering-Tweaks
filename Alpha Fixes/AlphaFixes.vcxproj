@@ -198,7 +198,7 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
-      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointModel>Precise</FloatingPointModel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IntelJCCErratum>true</IntelJCCErratum>
     </ClCompile>
@@ -317,6 +317,7 @@ copy "$(TargetDir)$(TargetName).pdb" "C:\Symbols\$(TargetName).pdb"</Command>
       </ForcedIncludeFiles>
     </ClCompile>
     <ClCompile Include="internal\Bethesda\BSBatchRenderer.cpp" />
+    <ClCompile Include="internal\Gamebryo\NiBound.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
