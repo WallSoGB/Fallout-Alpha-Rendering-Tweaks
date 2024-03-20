@@ -17,7 +17,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "Fallout Alpha Rendering Tweaks";
-	info->version = 251;
+	info->version = 252;
 	return true;
 }
 
@@ -70,6 +70,10 @@ void __fastcall RegisterPassGeometryGroup(BSBatchRenderer* apThis, void*, BSShad
 	UInt32 eAlphaType = BSBatchRenderer::ALPHA_NONE;
 	bool bHasStencil = false;
 	BSShaderProperty* pShaderProp = pGeom->GetShadeProperty<BSShaderProperty>();
+	if (!pShaderProp) {
+		_MESSAGE("No shader property found for geometry %s!", pGeom->GetName());
+	}
+
 	NiStencilProperty* pStencilProp = pGeom->GetStencilProperty();
 	if (pStencilProp && pStencilProp->m_usFlags.IsSet(NiStencilProperty::DRAWMODE_MASK)) {
 		bHasStencil = true;
@@ -83,7 +87,7 @@ void __fastcall RegisterPassGeometryGroup(BSBatchRenderer* apThis, void*, BSShad
 			bUseAlphaTest = false;
 		}
 
-		if ((pShaderProp->fAlpha < 1.f || pShaderProp->fFadeAlpha < 1.f) && !pAlphaProp->HasAlphaBlend() && auiPassEnum != BSShaderManager::BSSM_ZONLY_At) {
+		if ((pShaderProp && (pShaderProp->fAlpha < 1.f || pShaderProp->fFadeAlpha < 1.f)) && !pAlphaProp->HasAlphaBlend() && auiPassEnum != BSShaderManager::BSSM_ZONLY_At) {
 			bUseAlphaTest = true;
 		}
 	}
@@ -106,7 +110,7 @@ void __fastcall RegisterPassGeometryGroup(BSBatchRenderer* apThis, void*, BSShad
 		eAlphaType = BSBatchRenderer::ALPHA_NO_TMSAA;
 		break;
 	default:
-		if (pShaderProp->HasNoTMSAA()) {
+		if (pShaderProp && pShaderProp->HasNoTMSAA()) {
 			eAlphaType = BSBatchRenderer::ALPHA_NO_TMSAA;
 		}
 		else if (bUseAlphaTest) {
@@ -188,21 +192,21 @@ SInt32 __cdecl AlphaSorter(BSShaderProperty::RenderPass** apPassPtrOne, BSShader
 // Game also breaks if you use No_Fade flag in combination with NiAlphaController modifying fAlpha, causing it to flicker. (One disables alpha, and the other one sets it. Every frame.)
 void __fastcall SetBlendAlpha(void* apThis, void*, NiPropertyState* shaderProps) {
 	SetAlphaBlendEnable(0, 0);
-	BSShaderProperty* shadeProp = shaderProps->GetShadeProperty<BSShaderProperty>();
-	if (!shadeProp || shadeProp->m_eShaderType == -1) {
+	BSShaderProperty* pShadeProp = shaderProps->GetShadeProperty<BSShaderProperty>();
+	if (!pShadeProp || pShadeProp->m_eShaderType == -1) {
 		return;
 	}
-	NiAlphaProperty* alphaProp = shaderProps->GetAlphaProperty();
-	unsigned short flags = alphaProp ? alphaProp->m_usFlags.Get() : 0;
-	bool bBlend = (flags & 1) != 0;
-	bool bEnableBlend = ((shadeProp->fAlpha < 1.0f && !shadeProp->HasNoFade()) || shadeProp->fFadeAlpha < 1.0f || bBlend);
+	NiAlphaProperty* pAlphaProp = shaderProps->GetAlphaProperty();
+	UInt16 usFlags = pAlphaProp ? pAlphaProp->m_usFlags.Get() : 0;
+	bool bBlend = (usFlags & 1) != 0;
+	bool bEnableBlend = ((pShadeProp->fAlpha < 1.0f && !pShadeProp->HasNoFade()) || pShadeProp->fFadeAlpha < 1.0f || bBlend);
 	if (bEnableBlend) {
 #if _DEBUG
-		_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s\n", BSShaderProperty::RenderPass::GetCurrentPassName(), shadeProp->GetShaderType());
+		_MESSAGE("[SetBlendAlpha] Current pass: %s, shader type: %s\n", BSShaderProperty::RenderPass::GetCurrentPassName(), pShadeProp->GetShaderType());
 #endif
 		SetAlphaBlendEnable(1, 0);
 		if (bBlend) {
-			SetSrcAndDstBlends(((flags >> 1) & 0xF), ((flags >> 5) & 0xF), 0);
+			SetSrcAndDstBlends(((usFlags >> 1) & 0xF), ((usFlags >> 5) & 0xF), 0);
 		}
 		else {
 			SetSrcAndDstBlends(6, 7, 0);
